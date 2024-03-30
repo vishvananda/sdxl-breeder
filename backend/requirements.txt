@@ -1,0 +1,6 @@
+uvicorn[standard]
+fastapi
+torch
+git+https://github.com/anotherjesse/transformers.git@a3abf33474824cbdc9ab64873c1e057847d121bb
+diffusers
+accelerate
