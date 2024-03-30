@@ -102,6 +102,11 @@ def mix(t1, t2, seed=None, mutations=100):
 
 
 def gen(t, fn, num_images=1):
+    # Ensure the data directory exists
+    data_dir = "data"
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+
     prompt_embeds, pooled_prompt_embeds = gen_prompt_embeds(t)
 
     images = pipeline(
@@ -111,9 +116,9 @@ def gen(t, fn, num_images=1):
         num_inference_steps=1,
         num_images_per_prompt=num_images,
     ).images
-    torch.save(t, "data/" + fn + ".pt")
+    torch.save(t, f"{data_dir}/{fn}.pt")
     for i, image in enumerate(images):
-        f = f"data/{fn}-{i}.jpg"
+        f = f"{data_dir}/{fn}-{i}.jpg"
         image.save(f)
         yield f
 
