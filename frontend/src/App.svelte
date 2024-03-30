@@ -67,8 +67,11 @@
 </script>
 
 <header>
-  <button on:click={new_prompt}> new prompt </button>
-  <button on:click={() => breed()}> breed </button>
+  <h1>sdxl breeder</h1>
+  <div class="actions">
+    <button class="btn" on:click={new_prompt}> new prompt </button>
+    <button class="btn" on:click={() => breed()}> breed </button>
+  </div>
 </header>
 
 <main>
@@ -91,6 +94,12 @@
 </main>
 
 <style>
+  * {
+    font-family: monospace;
+  }
+  h1 {
+    font-size: 18px;
+  }
   img {
     margin: 2px;
     border: 2px solid #000;
@@ -100,6 +109,23 @@
   }
   header {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
+    width: 400px;
+    margin: 20px auto 20px auto;
+    align-items: center;
+  }
+  .btn {
+    background: #333;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-family: monospace;
+  }
+  .btn:hover {
+    background: #555;
+  }
+  .btn:active {
+    background: #000;
   }
 </style>
