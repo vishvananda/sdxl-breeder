@@ -2,17 +2,16 @@
 
 This is a tool for breeding Noken from SDXL. It's a work in progress.
 
-We can generate many images per second -- this is one idea for exploring the latent
-spaces between prompts.
+We can generate many images per second -- this is one idea for exploring the latent spaces between prompts.
 
 ## The idea
 
-Explore sending nokens instead of tokens to CLIP for embedding.
+Explore sending Nokens instead of tokens to CLIP for embedding.
 
 ## Capabilities:
 
 - users can generate images from a prompt (seeding the universe)
-- users can generate images by selecting two existing images, which then mixes their embeddings (latent space of token embeddings sent to CLIP for guidance) to generate a new image
+- users can generate images by selecting two existing images, which then "mixes" their embeddings (latent space of token embeddings sent to CLIP for guidance) to generate a new image
 
 ![mix](./mix.png)
 
@@ -22,7 +21,7 @@ If you don't like the image, you can try again and get a different mix!
 
 ### What?
 
-Let's desconstruct what happens when you send a prompt to SDXL (Turbo):
+Let's deconstruct what happens when you send a prompt to SDXL (Turbo):
 
 ```python
     images = pipeline(prompt)
@@ -35,7 +34,7 @@ a method `encode_prompt` that does this:
 prompt_embeds, _, pooled_prompt_embeds, _ = pipeline.encode_prompt(prompt)
 ```
 
-Note: For this experiment we are ignoring negative prompts
+Note: For this experiment, we are ignoring negative prompts
 
 While it is fun to play with this latent space (try replacing `prompt_embeds` with `torch.randn_like(prompt_embeds)`), what I want to do is deeper still.
 
