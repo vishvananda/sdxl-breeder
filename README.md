@@ -16,6 +16,10 @@ Explore sending nokens instead of tokens to CLIP for embedding.
 
 ![mix](./mix.png)
 
+If you don't like the image, you can try again and get a different mix!
+
+![mix2](./mix2.png)
+
 ### What?
 
 Let's desconstruct what happens when you send a prompt to SDXL (Turbo):
