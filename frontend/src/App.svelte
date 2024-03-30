@@ -72,6 +72,9 @@
     <button class="btn" on:click={new_prompt}> new prompt </button>
     <button class="btn" on:click={() => breed()}> breed </button>
   </div>
+  <div class="notes">
+    <span>shift + click to delete</span>
+  </div>
 </header>
 
 <main>
@@ -110,7 +113,7 @@
   header {
     display: flex;
     justify-content: space-between;
-    width: 400px;
+    width: 600px;
     margin: 20px auto 20px auto;
     align-items: center;
   }
