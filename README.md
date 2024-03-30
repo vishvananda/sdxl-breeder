@@ -128,3 +128,7 @@ For the draft svelte frontend:
 
 Then visit http://localhost:5173 to see the frontend.
 
+- click "new prompt" to generate an image from a prompt
+- click "breed" to generate an image by mixing the token embeddings of two existing images
+- drag and drop images to breed them
+- shift click an image to delete it
