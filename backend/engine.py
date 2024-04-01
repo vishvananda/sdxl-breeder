@@ -51,8 +51,50 @@ def gen_prompt_embeds(tok_embeds):
 
     return prompt_embeds, pooled_prompt_embeds
 
+def mix(t1, t2, seed=None, ratio=0.5):
+    [l1, b1], [l2, b2] = t1, t2
 
-def mix(t1, t2, seed=None, mutations=100):
+    if seed is not None:
+        torch.manual_seed(seed)
+
+    # Calculate the exact split points, including partial index consideration
+    l_exact_split = 768 * ratio
+    b_exact_split = 1280 * ratio
+
+    # Determine the integer split and the alpha for linear interpolation
+    l_split_int, l_alpha = int(l_exact_split), l_exact_split % 1
+    b_split_int, b_alpha = int(b_exact_split), b_exact_split % 1
+
+    # Generate shuffled indices based on the seed
+    l_indices = torch.randperm(768)[:l_split_int]
+    b_indices = torch.randperm(1280)[:b_split_int]
+
+    # Create copies of the original tensors to modify
+    l_mixed = l1.clone()
+    b_mixed = b1.clone()
+
+    # Replace the fully selected elements
+    l_mixed[:, :, l_indices] = l2[:, :, l_indices]
+    b_mixed[:, :, b_indices] = b2[:, :, b_indices]
+
+    # Linearly interpolate the partially selected index if alpha > 0
+    if l_alpha > 0 and l_split_int < 768:
+        l_mixed[:, :, l_split_int] = l1[:, :, l_split_int] * (1 - l_alpha) + l2[:, :, l_split_int] * l_alpha
+    if b_alpha > 0 and b_split_int < 1280:
+        b_mixed[:, :, b_split_int] = b1[:, :, b_split_int] * (1 - b_alpha) + b2[:, :, b_split_int] * b_alpha
+
+    return [l_mixed, b_mixed]
+
+def mix_lerp(t1, t2, seed=None, ratio=0.5):
+    # Linear interpolation between two embeddings
+    [l1, b1], [l2, b2] = t1, t2
+
+    l = ratio * l2 + (1 - ratio) * l1
+    b = ratio * b2 + (1 - ratio) * b1
+
+    return [l, b]
+
+def mix2(t1, t2, seed=None, mutations=100):
     # "mutate/crossover genetic-ish mixing"
     [l1, b1], [l2, b2] = t1, t2
 
@@ -101,21 +143,24 @@ def mix(t1, t2, seed=None, mutations=100):
     #     b[i, crossover:] = b2[i, crossover:]
 
 
-def gen(t, fn, num_images=1):
+def gen(t, fn, num_images=1, store=True):
     # Ensure the data directory exists
     data_dir = "data"
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
-    prompt_embeds, pooled_prompt_embeds = gen_prompt_embeds(t)
+    torch.manual_seed(42)
 
+    prompt_embeds, pooled_prompt_embeds = gen_prompt_embeds(t)
+    
     images = pipeline(
         prompt_embeds=prompt_embeds,
         pooled_prompt_embeds=pooled_prompt_embeds,
         guidance_scale=0.0,
-        num_inference_steps=1,
+        num_inference_steps=4,
         num_images_per_prompt=num_images,
     ).images
+
     torch.save(t, f"{data_dir}/{fn}.pt")
     for i, image in enumerate(images):
         f = f"{data_dir}/{fn}-{i}.jpg"
