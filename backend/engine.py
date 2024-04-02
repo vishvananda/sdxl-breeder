@@ -7,7 +7,7 @@ import uuid
 from PIL import Image
 
 pipeline = AutoPipelineForText2Image.from_pretrained(
-    "stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16"
+    "stabilityai/sdxl-turbo", torch_dtype=torch.float32, variant="fp16"
 )
 DEVICE = "cpu"
 if torch.backends.mps.is_available():

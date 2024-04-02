@@ -140,8 +140,8 @@ import torch
 
 def calculate_distance(image1, image2):
     """Calculate the distance between two images."""
-    hash1 = imagehash.average_hash(image1.img)
-    hash2 = imagehash.average_hash(image2.img)
+    hash1 = imagehash.whash(image1.img)
+    hash2 = imagehash.whash(image2.img)
     euc = torch.dist(image1.t[0], image2.t[0]).item() + torch.dist(image1.t[1], image2.t[1]).item()
     return hash1 - hash2 + euc
 
