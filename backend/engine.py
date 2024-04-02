@@ -4,6 +4,8 @@ import torch
 import glob
 import uuid
 
+from PIL import Image
+
 pipeline = AutoPipelineForText2Image.from_pretrained(
     "stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16"
 )
@@ -94,7 +96,21 @@ def mix_lerp(t1, t2, seed=None, ratio=0.5):
 
     return [l, b]
 
-def mix2(t1, t2, seed=None, mutations=100):
+def mix_slerp(t1, t2, seed=None, ratio=0.5):
+    [l1, b1], [l2, b2] = t1, t2
+
+    l1_norm = l1 / l1.norm()
+    l2_norm = l2 / l2.norm()
+    b1_norm = b1 / b1.norm()
+    b2_norm = b2 / b2.norm()
+    
+    l = ratio * l2_norm + (1 - ratio) * l1_norm
+    l *= ratio * l2.norm() + (1 - ratio) * l1.norm()
+    b = ratio * b2_norm + (1 - ratio) * b1_norm
+    b *= ratio * b2.norm() + (1 - ratio) * b1.norm()
+    return [l, b]
+
+def mix_crossover(t1, t2, seed=None, mutations=100):
     # "mutate/crossover genetic-ish mixing"
     [l1, b1], [l2, b2] = t1, t2
 
@@ -143,23 +159,31 @@ def mix2(t1, t2, seed=None, mutations=100):
     #     b[i, crossover:] = b2[i, crossover:]
 
 
-def gen(t, fn, num_images=1, store=True):
-    # Ensure the data directory exists
-    data_dir = "data"
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
+def gen(t, fn, num_images=1, seed=42):
 
-    torch.manual_seed(42)
+    images = gen_images(t, num_images, seed)
+    return save_images(t, fn, images)
+
+
+def gen_images(t, num_images=1, seed=42):
+    torch.manual_seed(seed)
 
     prompt_embeds, pooled_prompt_embeds = gen_prompt_embeds(t)
     
-    images = pipeline(
+    return pipeline(
         prompt_embeds=prompt_embeds,
         pooled_prompt_embeds=pooled_prompt_embeds,
         guidance_scale=0.0,
         num_inference_steps=4,
         num_images_per_prompt=num_images,
     ).images
+
+
+def save_images(t, fn, images):
+    # Ensure the data directory exists
+    data_dir = "data"
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
 
     torch.save(t, f"{data_dir}/{fn}.pt")
     for i, image in enumerate(images):
@@ -174,6 +198,11 @@ def get_uuid():
 
 def load(uuid):
     return torch.load("data/" + uuid + ".pt")
+
+def load_image(uuid, idx=0):
+    data_dir = "data"
+    image_path = f"{data_dir}/{uuid}-{idx}.jpg"
+    return Image.open(image_path)
 
 
 def delete_uuid(uuid):
