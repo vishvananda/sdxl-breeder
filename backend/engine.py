@@ -6,8 +6,9 @@ import uuid
 
 from PIL import Image
 
+DTYPE=torch.float16
 pipeline = AutoPipelineForText2Image.from_pretrained(
-    "stabilityai/sdxl-turbo", torch_dtype=torch.float32, variant="fp16"
+    "stabilityai/sdxl-turbo", torch_dtype=DTYPE, variant="fp16"
 )
 DEVICE = "cpu"
 if torch.backends.mps.is_available():
@@ -38,7 +39,7 @@ def gen_tok_embeds(prompt):
 def encode_tokens(inputs_embeds, text_encoder):
     prompt_embeds = text_encoder(inputs_embeds=inputs_embeds, output_hidden_states=True)
     pooled_prompt_embeds = prompt_embeds[0]
-    prompt_embeds = prompt_embeds.hidden_states[-2].to("cpu")
+    prompt_embeds = prompt_embeds.hidden_states[-2].to(DEVICE)
     return prompt_embeds, pooled_prompt_embeds
 
 
@@ -161,18 +162,25 @@ def mix_crossover(t1, t2, seed=None, mutations=100):
 
 def gen(t, fn, num_images=1, seed=42):
 
-    images = gen_images(t, num_images, seed)
+    images = gen_images([t], num_images, seed)
     return save_images(t, fn, images)
 
+from diffusers.utils.torch_utils import randn_tensor
 
-def gen_images(t, num_images=1, seed=42):
-    torch.manual_seed(seed)
-
-    prompt_embeds, pooled_prompt_embeds = gen_prompt_embeds(t)
+def gen_images(ts, num_images=1, seed=42):
+    prompt_embeddings = (gen_prompt_embeds(t) for t in ts) 
+    # Unzip and stack embeddings
+    prompt_embeds, pooled_prompt_embeds = zip(*prompt_embeddings)
+    batch_prompt_embeds = torch.cat(prompt_embeds, dim=0)
+    batch_pooled_prompt_embeds = torch.cat(pooled_prompt_embeds, dim=0)
     
+    generators = [
+        torch.Generator(device=pipeline.device).manual_seed(seed) for x in range(len(ts))
+    ]
     return pipeline(
-        prompt_embeds=prompt_embeds,
-        pooled_prompt_embeds=pooled_prompt_embeds,
+        prompt_embeds=batch_prompt_embeds,
+        pooled_prompt_embeds=batch_pooled_prompt_embeds,
+        generator=generators,
         guidance_scale=0.0,
         num_inference_steps=4,
         num_images_per_prompt=num_images,

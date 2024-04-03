@@ -10,6 +10,8 @@ import imagehash
 import heapq
 from collections import deque
 import numpy as np
+import torch
+
 
 app = FastAPI()
 app.add_middleware(
@@ -73,37 +75,12 @@ async def mix_prompts(request_body: MixRequest):
         distance = calculate_distance(images[i], images[i + 1])
         heapq.heappush(pq, (-distance, images[i].uuid, images[i], images[i + 1]))
     
-    num_images = 600
+    num_images = 60
+    batch_size = 5
 
     while len(images) < num_images and pq:
-        distance, _uuid, img1, img2 = heapq.heappop(pq)
-        distance = -distance  # Convert back to positive since we stored it as negative
-
-        print("Generating", distance) 
-        new_image = generate_intermediate_image(img1, img2)
-
-        # Find the new index for insertion
-        new_index = images.index(img1) + 1
-
-        bdistance = calculate_distance(images[new_index - 1], new_image)
-        adistance = calculate_distance(new_image, images[new_index])
-
-        # Don't add new image if we are not making progress
-        if (bdistance == distance and adistance == 0.0) or (bdistance == 0.0 and adistance == distance):
-            print("Skipping similar image at index", new_index)
-            continue
-
-        # Update priority queue with new distances
-        print("Adding before", bdistance)
-        heapq.heappush(pq, (-bdistance, images[new_index - 1].uuid, images[new_index - 1], new_image))
-        print("Adding after", adistance)
-        heapq.heappush(pq, (-adistance, new_image.uuid, new_image, images[new_index]))
-
-        # Insert the new image into the deque
-        print("Inserting at", new_index)
-        images.insert(new_index, new_image)
-
-
+        # distance = -distance  # Convert back to positive since we stored it as negative
+        images, pq = insert_intermediate_images(images, batch_size, pq)
     
     # Use the middle image from the list
     mid = images[len(images)// 2]
@@ -136,8 +113,6 @@ class ImageData:
 def load(uuid):
     return ImageData(uuid, engine.load(uuid), engine.load_image(uuid))
 
-import torch
-
 def calculate_distance(image1, image2):
     """Calculate the distance between two images."""
     hash1 = imagehash.whash(image1.img)
@@ -146,8 +121,38 @@ def calculate_distance(image1, image2):
     return hash1 - hash2 + euc
 
 
-def generate_intermediate_image(image1, image2, seed=42):
+def generate_intermediate_images(image1, image2, ratios, seed=42):
     """Generate an intermediate image between two images."""
-    mixed_t = engine.mix_slerp(image1.t, image2.t, seed=seed, ratio=0.5)
-    image = engine.gen_images(mixed_t, 1, seed)[0]
-    return ImageData(engine.get_uuid(), mixed_t, image)
+    ts =  [engine.mix_slerp(image1.t, image2.t, seed=seed, ratio=ratio) for ratio in ratios]
+    images = engine.gen_images(ts, 1, seed)
+    return [ImageData(engine.get_uuid(), ts[i], images[i]) for i in range(len(ts))]
+
+
+def insert_intermediate_images(images, n, pq):
+    """Generate and insert n intermediate images using pq."""
+    _distance, _uuid, prev_img, last_img = heapq.heappop(pq)
+    ratios = np.linspace(0, 1, n+2)[1:-1]  # Equally spaced ratios between 0 and 1, excluding ends
+    # Find the index for insertion
+    index = images.index(prev_img) + 1
+
+    new_images = generate_intermediate_images(prev_img, last_img, ratios)
+    for new_image in new_images:
+        # Calculate distances for the new image
+        bdistance = calculate_distance(prev_img, new_image)
+
+        # Insert the new image into images and update the priority queue
+        print("Inserting new image")
+        heapq.heappush(pq, (-bdistance, prev_img.uuid, prev_img, new_image))
+        images.insert(index, new_image)
+        index += 1
+        prev_img = new_image
+
+    # Add the final distance
+    adistance = calculate_distance(new_image, last_img)
+    heapq.heappush(pq, (-adistance, new_image.uuid, new_image, last_img))
+
+    return images, pq
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=4444, reload=True)
