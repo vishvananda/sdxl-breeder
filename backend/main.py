@@ -74,14 +74,14 @@ async def mix_prompts(request_body: MixRequest):
     for i in range(len(images) - 1):
         distance = calculate_distance(images[i], images[i + 1])
         heapq.heappush(pq, (-distance, images[i].uuid, images[i], images[i + 1]))
-    
-    num_images = 60
-    batch_size = 5
+
+    num_images = 600
+    batch_size = 9
 
     while len(images) < num_images and pq:
         # distance = -distance  # Convert back to positive since we stored it as negative
         images, pq = insert_intermediate_images(images, batch_size, pq)
-    
+
     # Use the middle image from the list
     mid = images[len(images)// 2]
     video_filename = f"data/{mid.uuid}.mp4"
@@ -103,7 +103,7 @@ async def mix_prompts(request_body: MixRequest):
 
 class ImageData:
     __slots__ = ['uuid', 't', 'img']
-    
+
     def __init__(self, uuid, t, img):
         self.uuid = uuid
         self.t = t
@@ -141,7 +141,7 @@ def insert_intermediate_images(images, n, pq):
         bdistance = calculate_distance(prev_img, new_image)
 
         # Insert the new image into images and update the priority queue
-        print("Inserting new image")
+        print("Inserting new image at index", index, "with distance", bdistance)
         heapq.heappush(pq, (-bdistance, prev_img.uuid, prev_img, new_image))
         images.insert(index, new_image)
         index += 1
@@ -149,6 +149,7 @@ def insert_intermediate_images(images, n, pq):
 
     # Add the final distance
     adistance = calculate_distance(new_image, last_img)
+    print("Final distance is", adistance)
     heapq.heappush(pq, (-adistance, new_image.uuid, new_image, last_img))
 
     return images, pq
